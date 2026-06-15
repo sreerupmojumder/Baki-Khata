@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:tali_khata/admin/admin_profile_screen.dart';
 
@@ -10,6 +11,7 @@ class CustomerModel {
   final String phone;
   final double totalDue;
   final DateTime lastUpdated;
+  final String createdBy; // কে কাস্টমার তৈরি করেছে তা ট্র্যাক করার জন্য
 
   CustomerModel({
     required this.id,
@@ -17,6 +19,7 @@ class CustomerModel {
     required this.phone,
     required this.totalDue,
     required this.lastUpdated,
+    required this.createdBy,
   });
 
   factory CustomerModel.fromMap(Map<String, dynamic> map, String docId) {
@@ -28,6 +31,7 @@ class CustomerModel {
       lastUpdated: map['last_updated'] != null
           ? (map['last_updated'] as Timestamp).toDate()
           : DateTime.now(),
+      createdBy: map['created_by'] ?? 'Unknown Admin',
     );
   }
 }
@@ -41,6 +45,7 @@ class DueManagementScreen extends StatefulWidget {
 
 class _DueManagementScreenState extends State<DueManagementScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _nameController = TextEditingController();
@@ -50,6 +55,18 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   String _searchQuery = "";
+
+  // বর্তমান লগইন থাকা ইউজারের নাম বা ইমেইল বের করার হেল্পার ফাংশন
+  String _getCurrentUserName() {
+    final User? user = _auth.currentUser;
+    if (user != null) {
+      // যদি ডিসপ্লে নেম থাকে তবে নাম দেখাবে, না হলে ইমেইল দেখাবে
+      return (user.displayName != null && user.displayName!.isNotEmpty) 
+          ? user.displayName! 
+          : (user.email ?? 'Unknown Admin');
+    }
+    return 'Unknown Admin';
+  }
 
   @override
   void initState() {
@@ -64,12 +81,13 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
     );
   }
 
-  // ১. নতুন কাস্টমার যুক্ত করার ফাংশন
+  // ১. নতুন কাস্টমার যুক্ত করার ফাংশন (ইউজার ট্র্যাকিং সহ)
   Future<void> _addCustomer() async {
     if (_formKey.currentState!.validate()) {
       String name = _nameController.text.trim();
       String phone = _phoneController.text.trim();
       double due = double.tryParse(_dueController.text.trim()) ?? 0.0;
+      String currentAdmin = _getCurrentUserName(); // কে এন্ট্রি করছে তার নাম
 
       if (phone.isNotEmpty) {
         if (mounted) Navigator.pop(context);
@@ -97,19 +115,23 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
         if (mounted) Navigator.pop(context);
       }
 
+      // কাস্টমার তৈরিতে 'created_by' ফিল্ড যুক্ত করা হলো
       DocumentReference docRef = await _firestore.collection('Customers').add({
         'name': name,
         'phone': phone,
         'total_due': due,
         'last_updated': FieldValue.serverTimestamp(),
+        'created_by': currentAdmin, 
       });
 
       if (due != 0) {
+        // ট্রানজেকশনে 'action_by' ফিল্ড যুক্ত করা হলো
         await _firestore.collection('Transactions').add({
           'customer_id': docRef.id,
           'type': due > 0 ? 'বাকি যোগ' : 'অগ্রিম জমা',
           'amount': due.abs(),
           'timestamp': FieldValue.serverTimestamp(),
+          'action_by': currentAdmin, 
         });
       }
 
@@ -126,6 +148,7 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
         'name': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'last_updated': FieldValue.serverTimestamp(),
+        // তথ্য কে এডিট করেছে চাইলে এটাও ট্র্যাক করে 'updated_by' ফিল্ডে রাখতে পারেন
       });
 
       _nameController.clear();
@@ -213,7 +236,7 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
     );
   }
 
-  // ৫. বাকি টাকা যোগ বা জমা নেওয়ার ডায়ালগ
+  // ৫. বাকি টাকা যোগ বা জমা নেওয়ার ডায়ালগ (ইউজার ট্র্যাকিং সহ)
   void _showUpdateDueDialog(CustomerModel customer, bool isAddingDue) {
     TextEditingController amountController = TextEditingController();
     showDialog(
@@ -244,6 +267,8 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               double amount = double.tryParse(amountController.text.trim()) ?? 0.0;
+              String currentAdmin = _getCurrentUserName(); // একটিভ ইউজারের নাম ট্র্যাকিং
+
               if (amount > 0) {
                 double newDue = isAddingDue ? customer.totalDue + amount : customer.totalDue - amount;
 
@@ -252,11 +277,13 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
                   'last_updated': FieldValue.serverTimestamp(),
                 });
 
+                // ট্রানজেকশন তৈরিতে 'action_by' ফিল্ড যুক্ত করা হলো
                 await _firestore.collection('Transactions').add({
                   'customer_id': customer.id,
                   'type': isAddingDue ? 'বাকি যোগ' : 'টাকা জমা',
                   'amount': amount,
                   'timestamp': FieldValue.serverTimestamp(),
+                  'action_by': currentAdmin, 
                 });
 
                 if (mounted) Navigator.pop(context);
@@ -312,22 +339,21 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
                   setState(() { _searchQuery = value.trim().toLowerCase(); });
                 },
               )
-            : const Text('বাকি খাতা', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            : const Text('বাকি খাতা (Due Management)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           _isSearching
               ? IconButton(icon: const Icon(Icons.clear), onPressed: () { setState(() { _isSearching = false; _searchController.clear(); _searchQuery = ""; }); })
               : IconButton(icon: const Icon(Icons.search), onPressed: () { setState(() { _isSearching = true; }); }),
-        
           IconButton(
-    icon: const Icon(Icons.account_circle, size: 28),
-    tooltip: 'অ্যাডমিন প্রোফাইল',
-    onPressed: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
-      );
-    },
-  ),
+            icon: const Icon(Icons.account_circle, size: 28),
+            tooltip: 'অ্যাডমিন প্রোফাইল',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
+              );
+            },
+          ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -367,7 +393,7 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (customer.phone.isNotEmpty) Text('ফোন: ${customer.phone}'),
-                      Text('শেষ লেনদেন: ${DateFormat('dd MMM, yyyy').format(customer.lastUpdated)}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text('এন্ট্রি করেছেন: ${customer.createdBy}', style: TextStyle(fontSize: 11, color: Colors.teal.shade700, fontWeight: FontWeight.w500)),
                     ],
                   ),
                   trailing: Row(
@@ -450,7 +476,7 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
   }
 }
 
-// --- ফিক্সড কাস্টমার লেনদেনের বিবরণী (Fixed History Screen) ---
+// --- কাস্টমার লেনদেনের বিবরণী (ইউজার ট্র্যাকিং সহ) ---
 class CustomerHistoryScreen extends StatelessWidget {
   final CustomerModel customer;
   const CustomerHistoryScreen({super.key, required this.customer});
@@ -472,18 +498,15 @@ class CustomerHistoryScreen extends StatelessWidget {
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // ফিক্স: ইনডেক্সিং এর এরর এড়াতে শুধু .where ব্যবহার করে Dart লেভেলে সর্টিং করা হয়েছে
         stream: firestore
             .collection('Transactions')
             .where('customer_id', isEqualTo: customer.id)
             .snapshots(),
         builder: (context, snapshot) {
-          // ১. ডেটা লোড হওয়ার সময়ে ইন্ডিকেটর দেখাবে
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           
-          // ২. ট্রানজেকশন কালেকশনে কোনো ডকুমেন্ট না থাকলে বা খালি থাকলে
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return _buildLayout(
               customer: customer,
@@ -500,10 +523,8 @@ class CustomerHistoryScreen extends StatelessWidget {
             );
           }
 
-          // ৩. ডাটা পাওয়া গেলে সেটিকে ডেট অনুযায়ী সর্ট করা
           final docs = snapshot.data!.docs;
           
-          // ফায়ারবেসের কুয়েরির পরিবর্তে মেমোরিতে সর্ট করা হলো যাতে ইনডেক্স ক্রাশ না করে
           List<QueryDocumentSnapshot> sortedDocs = List.from(docs);
           sortedDocs.sort((a, b) {
             final aData = a.data() as Map<String, dynamic>;
@@ -512,7 +533,7 @@ class CustomerHistoryScreen extends StatelessWidget {
             final Timestamp aTime = aData['timestamp'] ?? Timestamp.now();
             final Timestamp bTime = bData['timestamp'] ?? Timestamp.now();
             
-            return bTime.compareTo(aTime); // ল্যাটেস্ট ট্রানজেকশন সবার উপরে থাকবে
+            return bTime.compareTo(aTime);
           });
 
           return _buildLayout(
@@ -520,45 +541,67 @@ class CustomerHistoryScreen extends StatelessWidget {
             child: ListView.builder(
               itemCount: sortedDocs.length,
               padding: const EdgeInsets.all(10),
-              itemBuilder: (context, index) {
-                final data = sortedDocs[index].data() as Map<String, dynamic>;
-                final String type = data['type'] ?? 'লেনদেন';
-                final double amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-                
-                DateTime dateTime = DateTime.now();
-                if (data['timestamp'] != null) {
-                  dateTime = (data['timestamp'] as Timestamp).toDate();
-                }
+              itemBuilder: (context, index) =>
+               ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: sortedDocs.length,
+                itemBuilder: (context, index) {
+                  final data = sortedDocs[index].data() as Map<String, dynamic>;
+                  final String type = data['type'] ?? 'লেনদেন';
+                  final double amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+                  final String actionBy = data['action_by'] ?? 'Unknown'; // কে লেনদেনটি করেছে
+                  
+                  DateTime dateTime = DateTime.now();
+                  if (data['timestamp'] != null) {
+                    dateTime = (data['timestamp'] as Timestamp).toDate();
+                  }
 
-                final bool isCredit = type == 'টাকা জমা' || type == 'অগ্রিম জমা';
+                  final bool isCredit = type == 'টাকা জমা' || type == 'অগ্রিম জমা';
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  elevation: 1,
-                  child: ListTile(
-                    leading: Icon(
-                      isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-                      color: isCredit ? Colors.green : Colors.orange,
-                    ),
-                    title: Text(
-                      type,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      DateFormat('dd MMM yyyy, hh:mm a').format(dateTime),
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    trailing: Text(
-                      '৳${amount.toStringAsFixed(1)}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isCredit ? Colors.green.shade700 : Colors.orange.shade800,
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    elevation: 1,
+                    child: ListTile(
+                      leading: Icon(
+                        isCredit ? Icons.arrow_downward : Icons.arrow_upward,
+                        color: isCredit ? Colors.green : Colors.orange,
+                      ),
+                      title: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(type, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            '৳${amount.toStringAsFixed(1)}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isCredit ? Colors.green.shade700 : Colors.orange.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        // নিচে ছোট করে কার দ্বারা এন্ট্রি হয়েছে তা দেখানো হলো
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              DateFormat('dd MMM yyyy, hh:mm a').format(dateTime),
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                            Text(
+                              'বাই: $actionBy',
+                              style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade600, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           );
         },
@@ -566,7 +609,6 @@ class CustomerHistoryScreen extends StatelessWidget {
     );
   }
 
-  // স্ক্রিনের কমন লেআউট ঠিক রাখার জন্য হেল্পার উইজেট
   Widget _buildLayout({required CustomerModel customer, required Widget child}) {
     return Column(
       children: [
