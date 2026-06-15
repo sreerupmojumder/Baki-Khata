@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "823827220859",
+    "project_id": "tali-khata-da2cd",
+    "storage_bucket": "tali-khata-da2cd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:823827220859:android:e55c145e6b678b59dad5de",
+        "android_client_info": {
+          "package_name": "com.example.tali_khata"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEbKQlJrJPjT_pbJdbxRGAiIy7AXtxyzs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
