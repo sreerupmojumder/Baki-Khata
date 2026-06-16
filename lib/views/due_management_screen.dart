@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:tali_khata/admin/admin_profile_screen.dart';
 
@@ -51,7 +52,7 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _dueController = TextEditingController();
-  
+
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   String _searchQuery = "";
@@ -61,8 +62,8 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
     final User? user = _auth.currentUser;
     if (user != null) {
       // যদি ডিসপ্লে নেম থাকে তবে নাম দেখাবে, না হলে ইমেইল দেখাবে
-      return (user.displayName != null && user.displayName!.isNotEmpty) 
-          ? user.displayName! 
+      return (user.displayName != null && user.displayName!.isNotEmpty)
+          ? user.displayName!
           : (user.email ?? 'Unknown Admin');
     }
     return 'Unknown Admin';
@@ -101,7 +102,9 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('এই মোবাইল নম্বরটি ($phone) ইতিমধ্যে এন্ট্রি করা আছে!'),
+                  content: Text(
+                    'এই মোবাইল নম্বরটি ($phone) ইতিমধ্যে এন্ট্রি করা আছে!',
+                  ),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -121,7 +124,7 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
         'phone': phone,
         'total_due': due,
         'last_updated': FieldValue.serverTimestamp(),
-        'created_by': currentAdmin, 
+        'created_by': currentAdmin,
       });
 
       if (due != 0) {
@@ -131,7 +134,7 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
           'type': due > 0 ? 'বাকি যোগ' : 'অগ্রিম জমা',
           'amount': due.abs(),
           'timestamp': FieldValue.serverTimestamp(),
-          'action_by': currentAdmin, 
+          'action_by': currentAdmin,
         });
       }
 
@@ -160,7 +163,10 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
   // ৩. কাস্টমার ডিলিট করা
   Future<void> _deleteCustomer(String customerId) async {
     await _firestore.collection('Customers').doc(customerId).delete();
-    var history = await _firestore.collection('Transactions').where('customer_id', isEqualTo: customerId).get();
+    var history = await _firestore
+        .collection('Transactions')
+        .where('customer_id', isEqualTo: customerId)
+        .get();
     for (var doc in history.docs) {
       await doc.reference.delete();
     }
@@ -181,7 +187,11 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isEditMode ? 'কাস্টমারের তথ্য সংশোধন' : 'নতুন কাস্টমার ও বাকি এন্ট্রি'),
+        title: Text(
+          isEditMode
+              ? 'কাস্টমারের তথ্য সংশোধন'
+              : 'নতুন কাস্টমার ও বাকি এন্ট্রি',
+        ),
         content: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -190,20 +200,29 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
               children: [
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'কাস্টমারের নাম', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'কাস্টমারের নাম',
+                    border: OutlineInputBorder(),
+                  ),
                   validator: (v) => v!.isEmpty ? 'নাম লিখুন' : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _phoneController,
-                  decoration: const InputDecoration(labelText: 'মোবাইল নম্বর', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'মোবাইল নম্বর',
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: TextInputType.phone,
                 ),
                 if (!isEditMode) ...[
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _dueController,
-                    decoration: const InputDecoration(labelText: 'বাকি টাকার পরিমাণ (ঐচ্ছিক)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'বাকি টাকার পরিমাণ (ঐচ্ছিক)',
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                 ],
@@ -229,7 +248,10 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-            child: Text(isEditMode ? 'আপডেট করুন' : 'সংরক্ষণ করুন', style: const TextStyle(color: Colors.white)),
+            child: Text(
+              isEditMode ? 'আপডেট করুন' : 'সংরক্ষণ করুন',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -250,13 +272,20 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
             const SizedBox(height: 4),
             Text(
               '${customer.name} (${customer.totalDue >= 0 ? "বর্তমান বাকি" : "অগ্রিম জমা"}: ৳${customer.totalDue.abs().toStringAsFixed(1)})',
-              style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.normal),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.normal,
+              ),
             ),
           ],
         ),
         content: TextField(
           controller: amountController,
-          decoration: const InputDecoration(labelText: 'টাকার পরিমাণ', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'টাকার পরিমাণ',
+            border: OutlineInputBorder(),
+          ),
           keyboardType: TextInputType.number,
         ),
         actions: [
@@ -266,16 +295,23 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              double amount = double.tryParse(amountController.text.trim()) ?? 0.0;
-              String currentAdmin = _getCurrentUserName(); // একটিভ ইউজারের নাম ট্র্যাকিং
+              double amount =
+                  double.tryParse(amountController.text.trim()) ?? 0.0;
+              String currentAdmin =
+                  _getCurrentUserName(); // একটিভ ইউজারের নাম ট্র্যাকিং
 
               if (amount > 0) {
-                double newDue = isAddingDue ? customer.totalDue + amount : customer.totalDue - amount;
+                double newDue = isAddingDue
+                    ? customer.totalDue + amount
+                    : customer.totalDue - amount;
 
-                await _firestore.collection('Customers').doc(customer.id).update({
-                  'total_due': newDue,
-                  'last_updated': FieldValue.serverTimestamp(),
-                });
+                await _firestore
+                    .collection('Customers')
+                    .doc(customer.id)
+                    .update({
+                      'total_due': newDue,
+                      'last_updated': FieldValue.serverTimestamp(),
+                    });
 
                 // ট্রানজেকশন তৈরিতে 'action_by' ফিল্ড যুক্ত করা হলো
                 await _firestore.collection('Transactions').add({
@@ -283,35 +319,80 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
                   'type': isAddingDue ? 'বাকি যোগ' : 'টাকা জমা',
                   'amount': amount,
                   'timestamp': FieldValue.serverTimestamp(),
-                  'action_by': currentAdmin, 
+                  'action_by': currentAdmin,
                 });
 
                 if (mounted) Navigator.pop(context);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: isAddingDue ? Colors.orange : Colors.green),
-            child: Text(isAddingDue ? 'বাকি যোগ করুন' : 'জমা রাখুন', style: const TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isAddingDue ? Colors.orange : Colors.green,
+            ),
+            child: Text(
+              isAddingDue ? 'বাকি যোগ করুন' : 'জমা রাখুন',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
+  // অ্যাপ থেকে বের হওয়ার সময় কনফার্মেশন ডায়ালগ
+Future<bool?> _showExitConfirmationDialog(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(
+        children: [
+          Icon(Icons.exit_to_app_rounded, color: Colors.red),
+          SizedBox(width: 10),
+          Text('অ্যাপ বন্ধ করুন', style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+      content: const Text('আপনি কি নিশ্চিত যে "বাকি খাতা" অ্যাপটি থেকে বের হয়ে যেতে চান?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false), // বের হবে না
+          child: const Text('না', style: TextStyle(color: Colors.grey, fontSize: 16)),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true), // বের হয়ে যাবে
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('হ্যাঁ, বের হবো', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ),
+  );
+}
+
   void _showDeleteConfirmationDialog(CustomerModel customer) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('কাস্টমার ডিলিট করুন'),
-        content: Text('আপনি কি নিশ্চিত যে "${customer.name}" এর হিসাব ও সমস্ত ইতিহাস চিরতরে মুছে ফেলতে চান?'),
+        content: Text(
+          'আপনি কি নিশ্চিত যে "${customer.name}" এর হিসাব ও সমস্ত ইতিহাস চিরতরে মুছে ফেলতে চান?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('বাতিল')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('বাতিল'),
+          ),
           ElevatedButton(
             onPressed: () async {
               await _deleteCustomer(customer.id);
               if (mounted) Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('ডিলিট করুন', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'ডিলিট করুন',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -320,163 +401,300 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: Colors.teal[800],
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: _isSearching
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: const InputDecoration(
-                  hintText: 'নাম বা মোবাইল নম্বর দিয়ে খুঁজুন...',
-                  hintStyle: TextStyle(color: Colors.white54),
-                  border: InputBorder.none,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        // ব্যাক বাটন চাপলে এই এক্সিট কনফার্মেশন ডায়ালগটি ওপেন হবে
+      final shouldExit = await _showExitConfirmationDialog(context);
+      
+      if (shouldExit == true && context.mounted) {
+        // ইউজার যদি 'হ্যাঁ' দেয়, তবে অ্যাপ ক্লোজ করার জন্য পারমিশন দেওয়া হবে
+        await SystemNavigator.pop(); // এটি অ্যাপের মেইন স্ট্যাক ক্লোজ করবে
+      }
+
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[100],
+        appBar: AppBar(
+          backgroundColor: Colors.teal[800],
+          iconTheme: const IconThemeData(color: Colors.white),
+          title: _isSearching
+              ? TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  decoration: const InputDecoration(
+                    hintText: 'নাম বা মোবাইল নম্বর দিয়ে খুঁজুন...',
+                    hintStyle: TextStyle(color: Colors.white54),
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.trim().toLowerCase();
+                    });
+                  },
+                )
+              : const Text(
+                  'বাকি খাতা (Due Management)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                onChanged: (value) {
-                  setState(() { _searchQuery = value.trim().toLowerCase(); });
-                },
-              )
-            : const Text('বাকি খাতা (Due Management)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        actions: [
-          _isSearching
-              ? IconButton(icon: const Icon(Icons.clear), onPressed: () { setState(() { _isSearching = false; _searchController.clear(); _searchQuery = ""; }); })
-              : IconButton(icon: const Icon(Icons.search), onPressed: () { setState(() { _isSearching = true; }); }),
-          IconButton(
-            icon: const Icon(Icons.account_circle, size: 28),
-            tooltip: 'অ্যাডমিন প্রোফাইল',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
+          actions: [
+            _isSearching
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = false;
+                        _searchController.clear();
+                        _searchQuery = "";
+                      });
+                    },
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = true;
+                      });
+                    },
+                  ),
+            IconButton(
+              icon: const Icon(Icons.account_circle, size: 28),
+              tooltip: 'অ্যাডমিন প্রোফাইল',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AdminProfileScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        body: StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('Customers')
+              .orderBy('last_updated', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting)
+              return const Center(child: CircularProgressIndicator());
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+              return const Center(
+                child: Text('এখনো কোনো বাকির হিসাব এন্ট্রি করা হয়নি।'),
               );
-            },
-          ),
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore.collection('Customers').orderBy('last_updated', descending: true).snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('এখনো কোনো বাকির হিসাব এন্ট্রি করা হয়নি।'));
 
-          final docs = snapshot.data!.docs;
-          List<CustomerModel> customers = docs.map((doc) => CustomerModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
-
-          if (_searchQuery.isNotEmpty) {
-            customers = customers.where((c) => c.name.toLowerCase().contains(_searchQuery) || c.phone.contains(_searchQuery)).toList();
-          }
-
-          if (customers.isEmpty) return const Center(child: Text('কোনো কাস্টমার খুঁজে পাওয়া যায়নি।'));
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(10),
-            itemCount: customers.length,
-            itemBuilder: (context, index) {
-              final customer = customers[index];
-              final bool isAdvance = customer.totalDue < 0;
-
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.only(left: 14, right: 4, top: 4, bottom: 4),
-                  leading: CircleAvatar(
-                    backgroundColor: isAdvance ? Colors.green.shade50 : (customer.totalDue > 0 ? Colors.red.shade50 : Colors.grey.shade100),
-                    child: Icon(Icons.person, color: isAdvance ? Colors.green : (customer.totalDue > 0 ? Colors.red : Colors.grey)),
+            final docs = snapshot.data!.docs;
+            List<CustomerModel> customers = docs
+                .map(
+                  (doc) => CustomerModel.fromMap(
+                    doc.data() as Map<String, dynamic>,
+                    doc.id,
                   ),
-                  title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (customer.phone.isNotEmpty) Text('ফোন: ${customer.phone}'),
-                      Text('এন্ট্রি করেছেন: ${customer.createdBy}', style: TextStyle(fontSize: 11, color: Colors.teal.shade700, fontWeight: FontWeight.w500)),
-                    ],
+                )
+                .toList();
+
+            if (_searchQuery.isNotEmpty) {
+              customers = customers
+                  .where(
+                    (c) =>
+                        c.name.toLowerCase().contains(_searchQuery) ||
+                        c.phone.contains(_searchQuery),
+                  )
+                  .toList();
+            }
+
+            if (customers.isEmpty)
+              return const Center(
+                child: Text('কোনো কাস্টমার খুঁজে পাওয়া যায়নি।'),
+              );
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(10),
+              itemCount: customers.length,
+              itemBuilder: (context, index) {
+                final customer = customers[index];
+                final bool isAdvance = customer.totalDue < 0;
+
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            isAdvance ? 'অগ্রিম জমা' : 'বাকি টাকা',
-                            style: TextStyle(fontSize: 10, color: isAdvance ? Colors.green.shade700 : Colors.grey),
-                          ),
-                          Text(
-                            '৳${customer.totalDue.abs().toStringAsFixed(1)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: isAdvance ? Colors.green.shade700 : (customer.totalDue > 0 ? Colors.red.shade700 : Colors.black87),
-                            ),
-                          ),
-                        ],
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.only(
+                      left: 14,
+                      right: 4,
+                      top: 4,
+                      bottom: 4,
+                    ),
+                    leading: CircleAvatar(
+                      backgroundColor: isAdvance
+                          ? Colors.green.shade50
+                          : (customer.totalDue > 0
+                                ? Colors.red.shade50
+                                : Colors.grey.shade100),
+                      child: Icon(
+                        Icons.person,
+                        color: isAdvance
+                            ? Colors.green
+                            : (customer.totalDue > 0
+                                  ? Colors.red
+                                  : Colors.grey),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.history, color: Colors.teal),
-                        tooltip: 'লেনদেন বিবরণী',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => CustomerHistoryScreen(customer: customer)),
-                          );
-                        },
+                    ),
+                    title: Text(
+                      customer.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
-                    ],
-                  ),
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      builder: (context) => SafeArea(
-                        child: Wrap(
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (customer.phone.isNotEmpty)
+                          Text('ফোন: ${customer.phone}'),
+                        Text(
+                          'এন্ট্রি করেছেন: ${customer.createdBy}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.teal.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            ListTile(
-                              leading: const Icon(Icons.add_circle_outline, color: Colors.orange),
-                              title: const Text('নতুন বাকি যোগ করুন'),
-                              onTap: () { Navigator.pop(context); _showUpdateDueDialog(customer, true); },
+                            Text(
+                              isAdvance ? 'অগ্রিম জমা' : 'বাকি টাকা',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isAdvance
+                                    ? Colors.green.shade700
+                                    : Colors.grey,
+                              ),
                             ),
-                            ListTile(
-                              leading: const Icon(Icons.remove_circle_outline, color: Colors.green),
-                              title: const Text('টাকা জমা নিন (বাকি কমান / অগ্রিম)'),
-                              onTap: () { Navigator.pop(context); _showUpdateDueDialog(customer, false); },
-                            ),
-                            const Divider(height: 1),
-                            ListTile(
-                              leading: const Icon(Icons.edit_outlined, color: Colors.blue),
-                              title: const Text('কাস্টমারের তথ্য সংশোধন করুন'),
-                              onTap: () { Navigator.pop(context); _showCustomerFormDialog(customer: customer); },
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.delete_outline, color: Colors.red),
-                              title: const Text('কাস্টমার ডিলিট করুন'),
-                              onTap: () { Navigator.pop(context); _showDeleteConfirmationDialog(customer); },
+                            Text(
+                              '৳${customer.totalDue.abs().toStringAsFixed(1)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: isAdvance
+                                    ? Colors.green.shade700
+                                    : (customer.totalDue > 0
+                                          ? Colors.red.shade700
+                                          : Colors.black87),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCustomerFormDialog(),
-        backgroundColor: Colors.teal[800],
-        child: const Icon(Icons.person_add, color: Colors.white),
+                        IconButton(
+                          icon: const Icon(Icons.history, color: Colors.teal),
+                          tooltip: 'লেনদেন বিবরণী',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    CustomerHistoryScreen(customer: customer),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) => SafeArea(
+                          child: Wrap(
+                            children: [
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.add_circle_outline,
+                                  color: Colors.orange,
+                                ),
+                                title: const Text('নতুন বাকি যোগ করুন'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _showUpdateDueDialog(customer, true);
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.remove_circle_outline,
+                                  color: Colors.green,
+                                ),
+                                title: const Text(
+                                  'টাকা জমা নিন (বাকি কমান / অগ্রিম)',
+                                ),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _showUpdateDueDialog(customer, false);
+                                },
+                              ),
+                              const Divider(height: 1),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Colors.blue,
+                                ),
+                                title: const Text(
+                                  'কাস্টমারের তথ্য সংশোধন করুন',
+                                ),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _showCustomerFormDialog(customer: customer);
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
+                                title: const Text('কাস্টমার ডিলিট করুন'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _showDeleteConfirmationDialog(customer);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showCustomerFormDialog(),
+          backgroundColor: Colors.teal[800],
+          child: const Icon(Icons.person_add, color: Colors.white),
+        ),
       ),
     );
   }
 }
 
 // --- কাস্টমার লেনদেনের বিবরণী (ইউজার ট্র্যাকিং সহ) ---
+// --- ফিক্সড কাস্টমার লেনদেনের বিবরণী স্ক্রিন ---
 class CustomerHistoryScreen extends StatelessWidget {
   final CustomerModel customer;
   const CustomerHistoryScreen({super.key, required this.customer});
@@ -492,8 +710,20 @@ class CustomerHistoryScreen extends StatelessWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${customer.name} - এর খতিয়ান', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(customer.phone.isNotEmpty ? 'মোবাইল: ${customer.phone}' : 'কোনো নম্বর নেই', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(
+              '${customer.name} - এর খতিয়ান',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              customer.phone.isNotEmpty
+                  ? 'মোবাইল: ${customer.phone}'
+                  : 'কোনো নম্বর নেই',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -506,7 +736,7 @@ class CustomerHistoryScreen extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return _buildLayout(
               customer: customer,
@@ -524,84 +754,93 @@ class CustomerHistoryScreen extends StatelessWidget {
           }
 
           final docs = snapshot.data!.docs;
-          
+
+          // সময় অনুযায়ী সাজানো
           List<QueryDocumentSnapshot> sortedDocs = List.from(docs);
           sortedDocs.sort((a, b) {
             final aData = a.data() as Map<String, dynamic>;
             final bData = b.data() as Map<String, dynamic>;
-            
+
             final Timestamp aTime = aData['timestamp'] ?? Timestamp.now();
             final Timestamp bTime = bData['timestamp'] ?? Timestamp.now();
-            
+
             return bTime.compareTo(aTime);
           });
 
+          // ফিক্সড: এখানে ডবল ListView.builder তুলে দিয়ে একটি সিঙ্গেল বিল্ডার রাখা হয়েছে
           return _buildLayout(
             customer: customer,
             child: ListView.builder(
               itemCount: sortedDocs.length,
               padding: const EdgeInsets.all(10),
-              itemBuilder: (context, index) =>
-               ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: sortedDocs.length,
-                itemBuilder: (context, index) {
-                  final data = sortedDocs[index].data() as Map<String, dynamic>;
-                  final String type = data['type'] ?? 'লেনদেন';
-                  final double amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-                  final String actionBy = data['action_by'] ?? 'Unknown'; // কে লেনদেনটি করেছে
-                  
-                  DateTime dateTime = DateTime.now();
-                  if (data['timestamp'] != null) {
-                    dateTime = (data['timestamp'] as Timestamp).toDate();
-                  }
+              itemBuilder: (context, index) {
+                final data = sortedDocs[index].data() as Map<String, dynamic>;
+                final String type = data['type'] ?? 'লেনদেন';
+                final double amount =
+                    (data['amount'] as num?)?.toDouble() ?? 0.0;
+                final String actionBy = data['action_by'] ?? 'Unknown';
 
-                  final bool isCredit = type == 'টাকা জমা' || type == 'অগ্রিম জমা';
+                DateTime dateTime = DateTime.now();
+                if (data['timestamp'] != null) {
+                  dateTime = (data['timestamp'] as Timestamp).toDate();
+                }
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    elevation: 1,
-                    child: ListTile(
-                      leading: Icon(
-                        isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-                        color: isCredit ? Colors.green : Colors.orange,
-                      ),
-                      title: Row(
+                final bool isCredit =
+                    type == 'টাকা জমা' || type == 'অগ্রিম জমা';
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  elevation: 1,
+                  child: ListTile(
+                    leading: Icon(
+                      isCredit ? Icons.arrow_downward : Icons.arrow_upward,
+                      color: isCredit ? Colors.green : Colors.orange,
+                    ),
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          type,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '৳${amount.toStringAsFixed(1)}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isCredit
+                                ? Colors.green.shade700
+                                : Colors.orange.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(type, style: const TextStyle(fontWeight: FontWeight.bold)),
                           Text(
-                            '৳${amount.toStringAsFixed(1)}',
+                            DateFormat('dd MMM yyyy, hh:mm a').format(dateTime),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            'বাই: $actionBy',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 11,
+                              color: Colors.blueGrey.shade600,
                               fontWeight: FontWeight.bold,
-                              color: isCredit ? Colors.green.shade700 : Colors.orange.shade800,
                             ),
                           ),
                         ],
                       ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 6.0),
-                        // নিচে ছোট করে কার দ্বারা এন্ট্রি হয়েছে তা দেখানো হলো
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              DateFormat('dd MMM yyyy, hh:mm a').format(dateTime),
-                              style: const TextStyle(fontSize: 11, color: Colors.grey),
-                            ),
-                            Text(
-                              'বাই: $actionBy',
-                              style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade600, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           );
         },
@@ -609,7 +848,10 @@ class CustomerHistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLayout({required CustomerModel customer, required Widget child}) {
+  Widget _buildLayout({
+    required CustomerModel customer,
+    required Widget child,
+  }) {
     return Column(
       children: [
         Container(
@@ -619,15 +861,20 @@ class CustomerHistoryScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('বর্তমান স্থিতি:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text(
+                'বর্তমান স্থিতি:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
               Text(
-                customer.totalDue >= 0 
+                customer.totalDue >= 0
                     ? 'বাকি: ৳${customer.totalDue.toStringAsFixed(1)}'
                     : 'অগ্রিম জমা: ৳${customer.totalDue.abs().toStringAsFixed(1)}',
                 style: TextStyle(
-                  fontSize: 18, 
-                  fontWeight: FontWeight.bold, 
-                  color: customer.totalDue >= 0 ? Colors.red.shade700 : Colors.green.shade700
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: customer.totalDue >= 0
+                      ? Colors.red.shade700
+                      : Colors.green.shade700,
                 ),
               ),
             ],
