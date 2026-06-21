@@ -437,7 +437,7 @@ Future<bool?> _showExitConfirmationDialog(BuildContext context) {
                   },
                 )
               : const Text(
-                  'বাকি খাতা (Due Management)',
+                  'বাকি খাতা',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
